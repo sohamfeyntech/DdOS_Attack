@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DDoS Detection Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        .blink {
+            animation: blink 1s linear infinite;
+            color: red;
+        }
+        .green-bold {
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DDoS Detection Dashboard</h1>
+        <canvas id="packetChart"></canvas>
+        <div class="button-container">
+            <button id="startBtn">Start Detection</button>
+            <button id="stopBtn">Stop Detection</button>
+        </div>
+        <p id="detectionStatus">Detection is not active.</p>
+        <div id="ddosInfo">
+            <div id="attackDetected"></div>
+            <div id="preventionStatus"></div>
+        </div>
+        <div id="attackLog">
+            <h2>Attack Log</h2>
+            <ul id="logEntries"></ul>
+        </div>
+    </div>
+
+    <script type="text/javascript" charset="utf-8">
+        var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+        var ctx = document.getElementById('packetChart').getContext('2d');
+        var packetChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Packet Count',
+                    data: [],
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    fill: false,
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#000000',
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#000000',
+                        }
+                    }
+                },
+                legend: {
+                    labels: {
+                        color: '#000000',
+                    }
+                }
+            }
+        });
+
+        document.getElementById('startBtn').onclick = function() {
+            socket.emit('start_detection');
+            document.getElementById('detectionStatus').textContent = 'Detection is active.';
+        };
+
+        document.getElementById('stopBtn').onclick = function() {
+            socket.emit('stop_detection');
+            document.getElementById('detectionStatus').textContent = 'Detection has stopped.';
+        };
+
+        socket.on('packet_info', function(msg) {
+            const maxDataPoints = 20;
+            const currentTime = new Date().toLocaleTimeString();
+
+            if (packetChart.data.labels.length >= maxDataPoints) {
+                packetChart.data.labels.shift();
+                packetChart.data.datasets.forEach((dataset) => {
+                    dataset.data.shift();
+                });
+            }
+
+            packetChart.data.labels.push(currentTime);
+            packetChart.data.datasets.forEach((dataset) => {
+                dataset.data.push(msg.count);
+            });
+
+            packetChart.update();
+        });
+
+        socket.on('ddos_detected', function(msg) {
+            var attackDetected = document.getElementById('attackDetected');
+            var preventionStatus = document.getElementById('preventionStatus');
+            var logEntries = document.getElementById('logEntries');
+            var entry = document.createElement('li');
+
+            attackDetected.innerHTML = `DDoS Attack Detected from IP: ${msg.src_ip}`;
+            attackDetected.className = 'blink';
+
+            if (msg.prevented) {
+                preventionStatus.innerHTML = 'Prevented: Yes';
+                preventionStatus.className = 'green-bold';
+                entry.innerHTML = `${msg.timestamp} - DDoS attack from ${msg.src_ip} was prevented.`;
+            } else {
+                preventionStatus.innerHTML = 'Prevented: No';
+                entry.innerHTML = `${msg.timestamp} - DDoS attack from ${msg.src_ip} was not prevented.`;
+            }
+
+            logEntries.appendChild(entry);
+        });
+    </script>
+</body>
+</html>

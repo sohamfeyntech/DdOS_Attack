@@ -1,0 +1,47 @@
+<!-- templates/dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DDoS Detection Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h2>Live DDoS Attack Detection</h2>
+        <canvas id="attackChart"></canvas>
+    </div>
+
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+        var ctx = document.getElementById('attackChart').getContext('2d');
+        var attackChart = new Chart(ctx, {
+            type: 'line', // Change to 'bar', 'line', etc. based on your preference
+            data: {
+                labels: [], // Timestamps or another identifier for X-axis
+                datasets: [{
+                    label: 'Packet Count',
+                    data: [], // Data points for Y-axis
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        socket.on('newdata', function(msg) {
+            // Update attackChart with live data
+            // E.g., push new label and data point, then call attackChart.update();
+        });
+    </script>
+</body>
+</html>
